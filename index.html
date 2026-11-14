@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#110e24">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Blueprint">
+<title>Pixel Art Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4fb;--panel:#fff;--tx:#1c1833;--mu:#6b6785;--bd:#ddd8ee;--ac:#6f4bff;--act:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#110e24;--panel:#1b1736;--tx:#efeafd;--mu:#9f99c2;--bd:#352f5e;--ac:#8d73ff}}
+:root[data-theme="dark"]{--bg:#110e24;--panel:#1b1736;--tx:#efeafd;--mu:#9f99c2;--bd:#352f5e;--ac:#8d73ff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 'DM Sans',system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:16px}
+h1{font:700 26px 'Pixelify Sans',monospace;margin:0 0 4px}
+.sub{color:var(--mu);margin:0 0 14px}
+.box{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+button,select,input[type=number]{font:inherit;color:var(--tx);background:var(--panel);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;min-height:40px}
+button{cursor:pointer}
+button.on{background:var(--ac);color:var(--act);border-color:var(--ac)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2 label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu)}
+.grid2 input{width:100%}
+#file{display:none}
+.tog{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:14px}
+.tog label{display:flex;align-items:center;gap:6px;min-height:32px}
+#wrap{overflow:auto;max-height:72vh;border:1px solid var(--bd);border-radius:8px;background:var(--panel)}
+canvas{display:block}
+#pal{display:flex;flex-wrap:wrap;gap:6px}
+.chip{width:76px;border-radius:8px;padding:6px 4px;text-align:center;font-size:12px;line-height:1.25;border:2px solid transparent;cursor:pointer;min-height:44px}
+.chip b{display:block;font-size:15px}
+.chip.sel{border-color:var(--ac);outline:2px solid var(--tx)}
+#info,#hint{font-size:13px;color:var(--mu)}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:26px 14px;text-align:center;color:var(--mu)}
+.hide{display:none!important}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+textarea{font:14px/1.5 'DM Sans',system-ui,sans-serif;color:var(--tx);background:var(--panel);border:1px solid var(--bd);border-radius:8px;padding:10px;width:100%;min-height:320px;resize:vertical}
+#ps{font-size:13px;color:var(--mu)}
+</style>
+</head>
+<body>
+<main>
+<h1>Pixel Art Blueprint</h1>
+<p class="sub">Upload pixel art and get a grid you can redraw from, one tile at a time.</p>
+<div class="row" style="margin-bottom:12px"><button id="tb1" class="on">Blueprint</button><button id="tb2">Prompts</button></div>
+<div id="bp">
+<div class="box">
+<div class="row"><button id="up" class="on">Upload image</button><input id="file" type="file" accept="image/*"><span id="info">No image yet</span></div>
+<div class="grid2" style="margin-top:10px">
+<label>Grid width (px)<input id="gw" type="number" min="8" max="256" value="96"></label>
+<label>Max colors<input id="mc" type="number" min="2" max="64" value="32"></label>
+<label>Tile width<input id="tw" type="number" min="4" max="64" value="32"></label>
+<label>Tile height<input id="th" type="number" min="4" max="64" value="32"></label>
+</div>
+<p id="hint" style="margin:8px 0 0"></p>
+</div>
+<div id="drop">Drop an image here or tap Upload image. It stays on your device.</div>
+<div id="app" class="hide">
+<div class="row" style="margin-bottom:10px">
+<button id="vf" class="on">Full scene</button><button id="vt">Tile view</button>
+</div>
+<div id="tilebar" class="row hide" style="margin-bottom:10px">
+<button id="pv" aria-label="Previous tile">&lt;</button><select id="sel" style="flex:1;min-width:0"></select><button id="nx" aria-label="Next tile">&gt;</button>
+</div>
+<div class="tog" style="margin-bottom:10px">
+<label><input type="checkbox" id="g" checked> Grid</label>
+<label><input type="checkbox" id="n" checked> Coordinates</label>
+<label><input type="checkbox" id="d"> Color numbers</label>
+<label id="tbl"><input type="checkbox" id="tb" checked> Tile borders</label>
+</div>
+<div id="zrow" class="row" style="margin-bottom:10px"><label for="z" style="font-size:13px;color:var(--mu)">Zoom</label><input id="z" type="range" min="2" max="20" value="6" style="flex:1"></div>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<p id="cap" style="font-size:13px;color:var(--mu);margin:8px 0 12px"></p>
+<div class="box"><div id="ph" style="font-weight:700;margin-bottom:8px"></div><div id="pal"></div></div>
+</div>
+</div>
+<div id="pr" class="hide">
+<div class="box">
+<div style="font-weight:700;margin-bottom:4px">Fix uneven AI pixel art</div>
+<p class="sub" style="margin:0 0 8px">Copy this and paste it into an AI chat with your image. You can edit it, and changes save on this device.</p>
+<textarea id="pt" aria-label="Prompt text"></textarea>
+<div class="row" style="margin-top:8px"><button id="cp" class="on">Copy</button><button id="rs">Reset to default</button><span id="ps"></span></div>
+</div>
+</div>
+</main>
+<script>
+const $=i=>document.getElementById(i),M=26,D=Math.min(2,window.devicePixelRatio||1);
+let G=null,P=[],gw=0,gh=0,tw=32,th=32,mode='f',cur=0,hl=-1,src=null;
+const cv=$('cv'),cx=cv.getContext('2d');
+const hex=c=>'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
+const lum=c=>(0.299*c[0]+0.587*c[1]+0.114*c[2])/255;
+const tname=(i,cols)=>{const c=i%cols,r=Math.floor(i/cols);return String.fromCharCode(65+(c%26))+(r+1)};
+function gcd(a,b){while(b){[a,b]=[b,a%b];}return a}
+function detect(im,w,h){let g=0;const d=im.data;const step=Math.max(1,Math.floor(h/80));
+for(let y=0;y<h;y+=step){let run=1;for(let x=1;x<=w;x++){const i=(y*w+x)*4,j=i-4;if(x<w&&d[i]==d[j]&&d[i+1]==d[j+1]&&d[i+2]==d[j+2]&&d[i+3]==d[j+3])run++;else{g=gcd(g,run);run=1;if(g==1)return 1}}}
+const sx=Math.max(1,Math.floor(w/80));
+for(let x=0;x<w;x+=sx){let run=1;for(let y=1;y<=h;y++){const i=(y*w+x)*4,j=i-w*4;if(y<h&&d[i]==d[j]&&d[i+1]==d[j+1]&&d[i+2]==d[j+2]&&d[i+3]==d[j+3])run++;else{g=gcd(g,run);run=1;if(g==1)return 1}}}
+return g||1}
+function mcut(es,k){let bx=[es];while(bx.length<k){let bi=-1,bs=0,ch=0;bx.forEach((b,i)=>{if(b.length<2)return;for(let c=0;c<3;c++){let lo=255,hi=0;b.forEach(e=>{lo=Math.min(lo,e[c]);hi=Math.max(hi,e[c])});if(hi-lo>bs){bs=hi-lo;bi=i;ch=c}}});if(bi<0)break;const b=bx[bi].sort((a,c)=>a[ch]-c[ch]);const tot=b.reduce((s,e)=>s+e[3],0);let acc=0,m=0;for(;m<b.length-2;m++){acc+=b[m][3];if(acc>=tot/2)break}bx.splice(bi,1,b.slice(0,m+1),b.slice(m+1))}
+return bx.map(b=>{let t=0,r=0,g=0,l=0;b.forEach(e=>{t+=e[3];r+=e[0]*e[3];g+=e[1]*e[3];l+=e[2]*e[3]});return[Math.round(r/t),Math.round(g/t),Math.round(l/t)]})}
+function build(){
+if(!src)return;
+const W=src.w,H=src.h,d=src.im.data;
+gw=Math.max(8,Math.min(256,+$('gw').value||W));gh=Math.max(1,Math.round(H*gw/W));
+const sc=W/gw,raw=[],cnt=new Map();
+for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){
+const x0=Math.floor(x*sc),x1=Math.max(x0+1,Math.floor((x+1)*sc)),y0=Math.floor(y*sc),y1=Math.max(y0+1,Math.floor((y+1)*sc));
+let r=0,g=0,b=0,a=0,n=0;
+for(let j=y0;j<y1&&j<H;j++)for(let i=x0;i<x1&&i<W;i++){const k=(j*W+i)*4,al=d[k+3];r+=d[k]*al;g+=d[k+1]*al;b+=d[k+2]*al;a+=al;n++}
+if(!n||a/n<128){raw.push(-1);continue}
+const c=[Math.round(r/a),Math.round(g/a),Math.round(b/a)],key=(c[0]<<16)|(c[1]<<8)|c[2];
+raw.push(key);cnt.set(key,(cnt.get(key)||0)+1)}
+const mx=Math.max(2,Math.min(64,+$('mc').value||32));
+const es=[...cnt].map(([k,v])=>[k>>16,(k>>8)&255,k&255,v]);
+let pal=es.length<=mx?es.map(e=>[e[0],e[1],e[2]]):mcut(es,mx);
+pal=pal.sort((a,b)=>lum(a)-lum(b));
+const map=new Map();
+const near=key=>{if(map.has(key))return map.get(key);const r=key>>16,g=(key>>8)&255,b=key&255;let bi=0,bd=1e9;pal.forEach((p,i)=>{const dd=(p[0]-r)**2+(p[1]-g)**2+(p[2]-b)**2;if(dd<bd){bd=dd;bi=i}});map.set(key,bi);return bi};
+G=raw.map(k=>k<0?-1:near(k));P=pal;
+tw=Math.max(4,Math.min(64,+$('tw').value||32));th=Math.max(4,Math.min(64,+$('th').value||32));
+const tc=Math.ceil(gw/tw),tr=Math.ceil(gh/th);
+$('sel').innerHTML=Array.from({length:tc*tr},(_,i)=>{const c=i%tc,r=Math.floor(i/tc),x=c*tw,y=r*th;return'<option value="'+i+'">Tile '+tname(i,tc)+' (x '+x+'–'+(Math.min(gw,x+tw)-1)+', y '+y+'–'+(Math.min(gh,y+th)-1)+')</option>'}).join('');
+cur=Math.min(cur,tc*tr-1);$('sel').value=cur;
+$('info').textContent='Source '+W+'×'+H+', grid '+gw+'×'+gh+', '+P.length+' colors, '+tc*tr+' tiles';
+hl=-1;render()}
+function view(){const tc=Math.ceil(gw/tw);
+if(mode=='f'){const cs=+$('z').value;return{x:0,y:0,w:gw,h:gh,cs}}
+const c=cur%tc,r=Math.floor(cur/tc),x=c*tw,y=r*th,w=Math.min(tw,gw-x),h=Math.min(th,gh-y);
+const av=Math.min(window.innerWidth-56,860),cs=Math.max(9,Math.min(26,Math.floor((av-M)/w)));return{x,y,w,h,cs}}
+function render(){
+if(!G)return;
+const v=view(),cs=v.cs,tc=Math.ceil(gw/tw),tr=Math.ceil(gh/th);
+cv.width=(M+v.w*cs)*D;cv.height=(M+v.h*cs)*D;cv.style.width=(M+v.w*cs)+'px';cv.style.height=(M+v.h*cs)+'px';
+cx.setTransform(D,0,0,D,0,0);
+const css=getComputedStyle(document.body),tcol=css.color,used={};
+for(let j=0;j<v.h;j++)for(let i=0;i<v.w;i++){const c=G[(v.y+j)*gw+v.x+i],X=M+i*cs,Y=M+j*cs;
+if(c<0){cx.fillStyle=(i+j)%2?'#bbb':'#e6e6e6';cx.fillRect(X,Y,cs,cs);continue}
+used[c]=(used[c]||0)+1;cx.fillStyle=hex(P[c]);cx.fillRect(X,Y,cs,cs);
+if(hl>=0&&c!=hl){cx.fillStyle='rgba(0,0,0,0.65)';cx.fillRect(X,Y,cs,cs)}}
+if($('g').checked&&cs>=6){
+for(let i=0;i<=v.w;i++){const m=(v.x+i)%8==0;cx.strokeStyle=m?'rgba(255,255,255,0.6)':'rgba(0,0,0,0.3)';cx.lineWidth=m?0.9:0.5;cx.beginPath();cx.moveTo(M+i*cs,M);cx.lineTo(M+i*cs,M+v.h*cs);cx.stroke()}
+for(let j=0;j<=v.h;j++){const m=(v.y+j)%8==0;cx.strokeStyle=m?'rgba(255,255,255,0.6)':'rgba(0,0,0,0.3)';cx.lineWidth=m?0.9:0.5;cx.beginPath();cx.moveTo(M,M+j*cs);cx.lineTo(M+v.w*cs,M+j*cs);cx.stroke()}}
+if(mode=='f'&&$('tb').checked){cx.strokeStyle='#fff';cx.lineWidth=1.5;
+for(let c=0;c<=tc;c++){const x=Math.min(gw,c*tw);cx.beginPath();cx.moveTo(M+x*cs,M);cx.lineTo(M+x*cs,M+gh*cs);cx.stroke()}
+for(let r=0;r<=tr;r++){const y=Math.min(gh,r*th);cx.beginPath();cx.moveTo(M,M+y*cs);cx.lineTo(M+gw*cs,M+y*cs);cx.stroke()}
+cx.font='bold 11px DM Sans,sans-serif';cx.textAlign='left';cx.textBaseline='top';
+for(let t=0;t<tc*tr;t++){const x=(t%tc)*tw,y=Math.floor(t/tc)*th,s=tname(t,tc),px=M+x*cs+3,py=M+y*cs+3;cx.lineWidth=3;cx.strokeStyle='rgba(0,0,0,0.8)';cx.strokeText(s,px,py);cx.fillStyle='#fff';cx.fillText(s,px,py)}}
+if($('d').checked&&cs>=11){cx.font='bold '+Math.min(11,Math.floor(cs*0.55))+'px DM Sans,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+for(let j=0;j<v.h;j++)for(let i=0;i<v.w;i++){const c=G[(v.y+j)*gw+v.x+i];if(c<0)continue;cx.fillStyle=lum(P[c])>0.5?'#000':'#fff';cx.fillText(c,M+i*cs+cs/2,M+j*cs+cs/2+0.5)}}
+if($('n').checked){cx.fillStyle=tcol;const all=mode=='t'||cs>=20,fs=all?Math.max(7,Math.min(11,Math.floor(cs*0.62))):10;cx.font=fs+'px DM Sans,sans-serif';cx.textBaseline='middle';
+const ns=[1,2,4,5,8,10,16,20,32,50,100],st=all?1:(ns.find(s=>s*cs>=(gw>=100?34:26))||100),sh=(n,k)=>all||n%st==0||(k&&st>2&&(n%st)*cs>=34);const rot=all&&cx.measureText(''+Math.max(v.x+v.w-1,v.y+v.h-1)).width>cs-4;
+for(let i=0;i<v.w;i++){const gx=v.x+i,X=M+i*cs+cs/2;if(!sh(gx,i==v.w-1))continue;if(rot){cx.save();cx.translate(X,M-3);cx.rotate(-Math.PI/2);cx.textAlign='left';cx.fillText(gx,0,0);cx.restore()}else{cx.textAlign='center';cx.fillText(gx,X,M/2)}}
+cx.textAlign='right';for(let j=0;j<v.h;j++){const gy=v.y+j;if(sh(gy,j==v.h-1))cx.fillText(gy,M-3,M+j*cs+cs/2)}}
+const keys=(mode=='f'?P.map((_,i)=>i):Object.keys(used).map(Number)).sort((a,b)=>a-b);
+$('ph').textContent=mode=='f'?'Full palette ('+keys.length+' colors)':'Palette for tile '+tname(cur,tc)+' ('+keys.length+' colors)';
+$('pal').innerHTML=keys.map(i=>{const c=P[i];return'<div class="chip'+(hl==i?' sel':'')+'" data-i="'+i+'" role="button" tabindex="0" style="background:'+hex(c)+';color:'+(lum(c)>0.5?'#000':'#fff')+'"><b>'+i+'</b>'+hex(c)+'</div>'}).join('');
+$('cap').textContent=mode=='f'?'Tap a tile in the full scene to open it. Tap a palette color to highlight it.':'Columns '+v.x+'–'+(v.x+v.w-1)+', rows '+v.y+'–'+(v.y+v.h-1)+'. Tap a palette color to highlight it.';
+$('tilebar').classList.toggle('hide',mode=='f');$('zrow').classList.toggle('hide',mode!='f');$('tbl').classList.toggle('hide',mode!='f');
+$('vf').classList.toggle('on',mode=='f');$('vt').classList.toggle('on',mode=='t');$('sel').value=cur}
+function load(f){if(!f)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+src={w:c.width,h:c.height,im:x.getImageData(0,0,c.width,c.height)};
+const ps=detect(src.im,src.w,src.h);$('gw').value=Math.min(256,Math.round(src.w/ps));
+$('hint').textContent=ps>1?'Detected pixel size '+ps+'. Grid width set to the native pixel art size.':(src.w>256?'This looks like a regular image, not true pixel art. Grid width is set to 256; lower it to shrink the picture to the size you want to draw.':'Pixel size 1. Image is already at native size.');
+if(ps==1&&src.w>256)$('gw').value=96;
+$('drop').classList.add('hide');$('app').classList.remove('hide');cur=0;mode='f';
+$('z').value=Math.max(2,Math.min(20,Math.floor((Math.min(window.innerWidth-56,860)-M)/Math.min(256,+$('gw').value))));
+build();URL.revokeObjectURL(im.src)};im.src=URL.createObjectURL(f)}
+$('up').onclick=()=>$('file').click();$('file').onchange=e=>load(e.target.files[0]);
+document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('drop',e=>{e.preventDefault();load(e.dataTransfer.files[0])});
+['gw','mc','tw','th'].forEach(i=>$(i).onchange=()=>{build()});
+['g','n','d','tb','z'].forEach(i=>$(i).oninput=render);
+$('vf').onclick=()=>{mode='f';render()};$('vt').onclick=()=>{mode='t';render()};
+$('sel').onchange=()=>{cur=+$('sel').value;render()};
+const nt=()=>Math.ceil(gw/tw)*Math.ceil(gh/th);
+$('nx').onclick=()=>{cur=(cur+1)%nt();render()};$('pv').onclick=()=>{cur=(cur+nt()-1)%nt();render()};
+$('pal').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;const i=+c.dataset.i;hl=hl==i?-1:i;render()};
+cv.onclick=e=>{if(mode!='f')return;const r=cv.getBoundingClientRect(),cs=+$('z').value,x=Math.floor((e.clientX-r.left-M)/cs),y=Math.floor((e.clientY-r.top-M)/cs);if(x<0||y<0||x>=gw||y>=gh)return;cur=Math.floor(y/th)*Math.ceil(gw/tw)+Math.floor(x/tw);mode='t';render();window.scrollTo(0,0)};
+window.addEventListener('resize',()=>{if(G&&mode=='t')render()});
+const DEF="I'm uploading an AI-generated \"pixel art\" image. Its pixels are uneven: the block size drifts across the image and the edges are slightly blurry. Fix ONLY that. Everything else must stay as close to the original as possible.\nRules:\n- Keep the exact original width and height in pixels. Do not resize the final image.\n- Do not change the composition, colors, brightness, saturation, contrast or any details. Do not reduce the palette aggressively, and do not boost colors.\n- Do not ask me questions. Use code (PIL/numpy) and tell me what you chose.\nSteps:\n1. Report the original width x height.\n2. Find the best single pixel-block size for the image. Test candidate sizes (roughly 3 to 12 px) and pick the one that gives the lowest difference between the original and the rebuilt image. Show me the top candidates and your choice.\n3. Snap the whole image to that one uniform grid. Use the MEDIAN or most common color of each block, not the average, so edges stay crisp and no new in-between colors appear. If the width or height is not an exact multiple of the block size, compute the grid as round(width / block) by round(height / block).\n4. Upscale back to the exact original width x height with nearest-neighbor, so every pixel block is the same size.\n5. Only merge colors that are nearly identical (a tiny tolerance), to remove noise. Keep all real details such as lights, highlights and small objects. Remove only stray single pixels that are clearly noise.\n6. Check the result: view the original and the fixed version side by side and zoomed in on a few areas (sky, foliage, text-like details, edges). If anything drifted from the original, redo it with a better setting, and keep the closest version.\nExport:\n- Fixed image at the exact original size (same width x height)\n- The 1:1 version with one pixel per grid cell (small file)\n- Grid overlay on the fixed image, with a line every 10 cells and labeled coordinates\n- A palette file with each color's hex code and pixel count\nFinish by telling me:\n- the original size and the grid size (cells wide x cells tall)\n- the pixel block size used\n- the number of colors before and after\n- what was changed, and any areas that still look uneven";
+const pt=$('pt');let sv=null;
+try{sv=localStorage.getItem('pb_prompt')}catch(e){}
+pt.value=sv!==null?sv:DEF;
+pt.addEventListener('input',()=>{try{localStorage.setItem('pb_prompt',pt.value);$('ps').textContent='Saved on this device'}catch(e){$('ps').textContent='Could not save'}});
+$('rs').onclick=()=>{pt.value=DEF;try{localStorage.removeItem('pb_prompt')}catch(e){}$('ps').textContent='Reset to default'};
+$('cp').onclick=async()=>{try{await navigator.clipboard.writeText(pt.value);$('ps').textContent='Copied'}catch(e){pt.focus();pt.select();try{document.execCommand('copy');$('ps').textContent='Copied'}catch(e2){$('ps').textContent='Select the text and copy it manually'}}};
+function tab(n){$('bp').classList.toggle('hide',n!=1);$('pr').classList.toggle('hide',n!=2);$('tb1').classList.toggle('on',n==1);$('tb2').classList.toggle('on',n==2);if(n==1&&G)render()}
+$('tb1').onclick=()=>tab(1);$('tb2').onclick=()=>tab(2);
+if('serviceWorker' in navigator&&location.protocol.indexOf('http')==0)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
