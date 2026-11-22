@@ -3,13 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#110e24">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Blueprint">
 <title>Pixel Art Blueprint</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6f4bff">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f6f4fb;--panel:#fff;--tx:#1c1833;--mu:#6b6785;--bd:#ddd8ee;--ac:#6f4bff;--act:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -41,26 +39,27 @@ canvas{display:block}
 #info,#hint{font-size:13px;color:var(--mu)}
 #drop{border:2px dashed var(--bd);border-radius:10px;padding:26px 14px;text-align:center;color:var(--mu)}
 .hide{display:none!important}
+textarea{width:100%;min-height:260px;font:14px/1.5 'DM Sans',system-ui,sans-serif;color:var(--tx);background:var(--panel);border:1px solid var(--bd);border-radius:8px;padding:10px;resize:vertical}
+#ase ol{margin:6px 0 10px;padding-left:20px}
 :focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-textarea{font:14px/1.5 'DM Sans',system-ui,sans-serif;color:var(--tx);background:var(--panel);border:1px solid var(--bd);border-radius:8px;padding:10px;width:100%;min-height:320px;resize:vertical}
-#ps{font-size:13px;color:var(--mu)}
 </style>
 </head>
 <body>
 <main>
 <h1>Pixel Art Blueprint</h1>
 <p class="sub">Upload pixel art and get a grid you can redraw from, one tile at a time.</p>
-<div class="row" style="margin-bottom:12px"><button id="tb1" class="on">Blueprint</button><button id="tb2">Prompts</button></div>
-<div id="bp">
+<div class="row" style="margin-bottom:12px"><button id="t1" class="on">Blueprint</button><button id="t2">Prompts</button></div>
+<div id="pg1">
 <div class="box">
 <div class="row"><button id="up" class="on">Upload image</button><input id="file" type="file" accept="image/*"><span id="info">No image yet</span></div>
 <div class="grid2" style="margin-top:10px">
-<label>Grid width (px)<input id="gw" type="number" min="8" max="256" value="96"></label>
+<label>Grid width (px)<input id="gw" type="number" min="8" max="512" value="96"></label>
 <label>Max colors<input id="mc" type="number" min="2" max="64" value="32"></label>
 <label>Tile width<input id="tw" type="number" min="4" max="64" value="32"></label>
 <label>Tile height<input id="th" type="number" min="4" max="64" value="32"></label>
 </div>
 <p id="hint" style="margin:8px 0 0"></p>
+<div id="qw" class="row" style="margin-top:8px"></div>
 </div>
 <div id="drop">Drop an image here or tap Upload image. It stays on your device.</div>
 <div id="app" class="hide">
@@ -80,39 +79,62 @@ textarea{font:14px/1.5 'DM Sans',system-ui,sans-serif;color:var(--tx);background
 <div id="wrap"><canvas id="cv"></canvas></div>
 <p id="cap" style="font-size:13px;color:var(--mu);margin:8px 0 12px"></p>
 <div class="box"><div id="ph" style="font-weight:700;margin-bottom:8px"></div><div id="pal"></div></div>
+<div class="box" id="ase"></div>
 </div>
 </div>
-<div id="pr" class="hide">
-<div class="box">
-<div style="font-weight:700;margin-bottom:4px">Fix uneven AI pixel art</div>
-<p class="sub" style="margin:0 0 8px">Copy this and paste it into an AI chat with your image. You can edit it, and changes save on this device.</p>
-<textarea id="pt" aria-label="Prompt text"></textarea>
-<div class="row" style="margin-top:8px"><button id="cp" class="on">Copy</button><button id="rs">Reset to default</button><span id="ps"></span></div>
-</div>
+<div id="pg2" class="hide">
+<div class="box"><div style="font-weight:700;margin-bottom:6px">AI pixel-art cleanup prompt</div>
+<p class="sub" style="margin:0 0 8px">Edit it and it is saved on this device. Paste your own prompt over the starter text.</p>
+<textarea id="pr" aria-label="Cleanup prompt"></textarea>
+<div class="row" style="margin-top:8px"><button id="pc" class="on">Copy prompt</button><button id="prs">Reset to starter</button><span id="pm" style="font-size:13px;color:var(--mu)"></span></div></div>
 </div>
 </main>
 <script>
 const $=i=>document.getElementById(i),M=26,D=Math.min(2,window.devicePixelRatio||1);
-let G=null,P=[],gw=0,gh=0,tw=32,th=32,mode='f',cur=0,hl=-1,src=null;
+let G=null,P=[],gw=0,gh=0,tw=32,th=32,mode='f',cur=0,hl=-1,src=null,auto=null;
 const cv=$('cv'),cx=cv.getContext('2d');
 const hex=c=>'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
 const lum=c=>(0.299*c[0]+0.587*c[1]+0.114*c[2])/255;
 const tname=(i,cols)=>{const c=i%cols,r=Math.floor(i/cols);return String.fromCharCode(65+(c%26))+(r+1)};
-function gcd(a,b){while(b){[a,b]=[b,a%b];}return a}
-function detect(im,w,h){let g=0;const d=im.data;const step=Math.max(1,Math.floor(h/80));
-for(let y=0;y<h;y+=step){let run=1;for(let x=1;x<=w;x++){const i=(y*w+x)*4,j=i-4;if(x<w&&d[i]==d[j]&&d[i+1]==d[j+1]&&d[i+2]==d[j+2]&&d[i+3]==d[j+3])run++;else{g=gcd(g,run);run=1;if(g==1)return 1}}}
-const sx=Math.max(1,Math.floor(w/80));
-for(let x=0;x<w;x+=sx){let run=1;for(let y=1;y<=h;y++){const i=(y*w+x)*4,j=i-w*4;if(y<h&&d[i]==d[j]&&d[i+1]==d[j+1]&&d[i+2]==d[j+2]&&d[i+3]==d[j+3])run++;else{g=gcd(g,run);run=1;if(g==1)return 1}}}
-return g||1}
+function gridScore(e,L,p,o){let T=0;for(let i=1;i<L;i++)T+=e[i];if(!T)return 0;
+const w=p>=6?1:0;let on=0,n=0;
+for(let k=0;;k++){const b=Math.round(o+k*p);if(b>=L)break;if(b<1)continue;n++;for(let d=-w;d<=w;d++){const q=b+d;if(q>=1&&q<L)on+=e[q]}}
+const ch=Math.min(.95,n*(2*w+1)/(L-1));return(on/T-ch)/(1-ch)}
+function detectGrid(im,W,H){
+const d=im.data,ex=new Float64Array(W),ey=new Float64Array(H),sy=Math.max(1,H/240|0),sx=Math.max(1,W/240|0),t=16;
+for(let y=0;y<H;y+=sy)for(let x=1;x<W;x++){const i=(y*W+x)*4,j=i-4,v=Math.abs(d[i]-d[j])+Math.abs(d[i+1]-d[j+1])+Math.abs(d[i+2]-d[j+2])-t;if(v>0)ex[x]+=v}
+for(let x=0;x<W;x+=sx)for(let y=1;y<H;y++){const i=(y*W+x)*4,j=i-W*4,v=Math.abs(d[i]-d[j])+Math.abs(d[i+1]-d[j+1])+Math.abs(d[i+2]-d[j+2])-t;if(v>0)ey[y]+=v}
+const cand=[],tryP=(p,ph)=>{let a=-9,ox=0,b=-9,oy=0;for(const o of ph){const s=gridScore(ex,W,p,o);if(s>a){a=s;ox=o}const u=gridScore(ey,H,p,o);if(u>b){b=u;oy=o}}cand.push({p,ox,oy,s:(a+b)/2})};
+for(let p=2;p<=64&&p<=W/16;p++){if(W/p>512)continue;tryP(p,[...Array(p).keys()])}
+for(let n=16;n<=Math.min(512,W/2);n++){const p=W/n;if(Number.isInteger(p))continue;tryP(p,[0])}
+if(!cand.length)return null;const mx=Math.max(...cand.map(c=>c.s));if(mx<0.5)return null;
+const top=cand.filter(c=>c.s>=mx*0.93).sort((a,b)=>b.p-a.p)[0];
+return{p:top.p,ox:top.ox,oy:top.oy,s:top.s,gw:Math.floor((W-top.ox)/top.p+1e-6),gh:Math.floor((H-top.oy)/top.p+1e-6)}}
+function uniq(im){const s=new Set(),d=im.data;for(let i=0;i<d.length;i+=4){s.add(d[i]<<16|d[i+1]<<8|d[i+2]);if(s.size>512)return s.size}return s.size}
+function autoGrid(){const W=src.w,H=src.h,g=detectGrid(src.im,W,H);
+if(g)return{p:g.p,ox:g.ox,oy:g.oy,gw:g.gw,clean:true,why:'grid'};
+if(W<=512&&uniq(src.im)<=512)return{p:1,ox:0,oy:0,gw:W,clean:true,why:'native'};
+const p=Math.max(1,Math.ceil(W/256));return{p,ox:0,oy:0,gw:Math.floor(W/p),clean:false,why:'estimate'}}
+function note(){const W=src.w,au=auto&&auto.gw==gw,f=v=>+v.toFixed(2);let t;
+if(au&&auto.why=='grid')t='Pixel grid found automatically: each art pixel is '+f(auto.p)+' source px, so the art is '+gw+'×'+gh+'.';
+else if(au&&auto.why=='native')t='Already at native pixel size, so the grid matches the image.';
+else if(au)t='No clean pixel grid found (the blocks are uneven). Using '+gw+' wide, where each cell covers '+auto.p+' source px. Cleaning the image first gives a sharper result.';
+else t='Manual width: each cell covers '+f(W/gw)+' source px.'+(W%gw?' That is not a whole number, so cells blend. Try one of the widths below.':'');
+$('hint').textContent=t;
+const ds=[];for(let n=16;n<=512;n++)if(W%n==0)ds.push(n);
+ds.sort((a,b)=>Math.abs(Math.log(a/gw))-Math.abs(Math.log(b/gw)));
+$('qw').innerHTML=(ds.length?'<span style="font-size:13px;color:var(--mu)">Exact widths:</span>':'')+ds.slice(0,6).sort((a,b)=>a-b).map(n=>'<button data-w="'+n+'"'+(n==gw?' class="on"':'')+'>'+n+'</button>').join('')+'<button id="ad">Auto-detect again</button>'}
 function mcut(es,k){let bx=[es];while(bx.length<k){let bi=-1,bs=0,ch=0;bx.forEach((b,i)=>{if(b.length<2)return;for(let c=0;c<3;c++){let lo=255,hi=0;b.forEach(e=>{lo=Math.min(lo,e[c]);hi=Math.max(hi,e[c])});if(hi-lo>bs){bs=hi-lo;bi=i;ch=c}}});if(bi<0)break;const b=bx[bi].sort((a,c)=>a[ch]-c[ch]);const tot=b.reduce((s,e)=>s+e[3],0);let acc=0,m=0;for(;m<b.length-2;m++){acc+=b[m][3];if(acc>=tot/2)break}bx.splice(bi,1,b.slice(0,m+1),b.slice(m+1))}
 return bx.map(b=>{let t=0,r=0,g=0,l=0;b.forEach(e=>{t+=e[3];r+=e[0]*e[3];g+=e[1]*e[3];l+=e[2]*e[3]});return[Math.round(r/t),Math.round(g/t),Math.round(l/t)]})}
 function build(){
 if(!src)return;
 const W=src.w,H=src.h,d=src.im.data;
-gw=Math.max(8,Math.min(256,+$('gw').value||W));gh=Math.max(1,Math.round(H*gw/W));
-const sc=W/gw,raw=[],cnt=new Map();
+gw=Math.max(8,Math.min(512,+$('gw').value||W));
+const au=auto&&auto.gw==gw,sc=au?auto.p:W/gw,ox=au?auto.ox:0,oy=au?auto.oy:0,inset=au&&auto.clean&&sc>=4?Math.floor(sc/4):0;
+gh=Math.max(1,au?Math.floor((H-oy)/sc+1e-6):Math.round(H/sc));
+const raw=[],cnt=new Map();
 for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){
-const x0=Math.floor(x*sc),x1=Math.max(x0+1,Math.floor((x+1)*sc)),y0=Math.floor(y*sc),y1=Math.max(y0+1,Math.floor((y+1)*sc));
+const x0=ox+Math.floor(x*sc)+inset,x1=Math.max(x0+1,ox+Math.floor((x+1)*sc)-inset),y0=oy+Math.floor(y*sc)+inset,y1=Math.max(y0+1,oy+Math.floor((y+1)*sc)-inset);
 let r=0,g=0,b=0,a=0,n=0;
 for(let j=y0;j<y1&&j<H;j++)for(let i=x0;i<x1&&i<W;i++){const k=(j*W+i)*4,al=d[k+3];r+=d[k]*al;g+=d[k+1]*al;b+=d[k+2]*al;a+=al;n++}
 if(!n||a/n<128){raw.push(-1);continue}
@@ -130,7 +152,7 @@ const tc=Math.ceil(gw/tw),tr=Math.ceil(gh/th);
 $('sel').innerHTML=Array.from({length:tc*tr},(_,i)=>{const c=i%tc,r=Math.floor(i/tc),x=c*tw,y=r*th;return'<option value="'+i+'">Tile '+tname(i,tc)+' (x '+x+'–'+(Math.min(gw,x+tw)-1)+', y '+y+'–'+(Math.min(gh,y+th)-1)+')</option>'}).join('');
 cur=Math.min(cur,tc*tr-1);$('sel').value=cur;
 $('info').textContent='Source '+W+'×'+H+', grid '+gw+'×'+gh+', '+P.length+' colors, '+tc*tr+' tiles';
-hl=-1;render()}
+hl=-1;note();render()}
 function view(){const tc=Math.ceil(gw/tw);
 if(mode=='f'){const cs=+$('z').value;return{x:0,y:0,w:gw,h:gh,cs}}
 const c=cur%tc,r=Math.floor(cur/tc),x=c*tw,y=r*th,w=Math.min(tw,gw-x),h=Math.min(th,gh-y);
@@ -167,12 +189,11 @@ $('tilebar').classList.toggle('hide',mode=='f');$('zrow').classList.toggle('hide
 $('vf').classList.toggle('on',mode=='f');$('vt').classList.toggle('on',mode=='t');$('sel').value=cur}
 function load(f){if(!f)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
 src={w:c.width,h:c.height,im:x.getImageData(0,0,c.width,c.height)};
-const ps=detect(src.im,src.w,src.h);$('gw').value=Math.min(256,Math.round(src.w/ps));
-$('hint').textContent=ps>1?'Detected pixel size '+ps+'. Grid width set to the native pixel art size.':(src.w>256?'This looks like a regular image, not true pixel art. Grid width is set to 256; lower it to shrink the picture to the size you want to draw.':'Pixel size 1. Image is already at native size.');
-if(ps==1&&src.w>256)$('gw').value=96;
+auto=autoGrid();$('gw').value=auto.gw;
 $('drop').classList.add('hide');$('app').classList.remove('hide');cur=0;mode='f';
-$('z').value=Math.max(2,Math.min(20,Math.floor((Math.min(window.innerWidth-56,860)-M)/Math.min(256,+$('gw').value))));
+$('z').value=Math.max(2,Math.min(20,Math.floor((Math.min(window.innerWidth-56,860)-M)/Math.min(512,+$('gw').value))));
 build();URL.revokeObjectURL(im.src)};im.src=URL.createObjectURL(f)}
+$('qw').onclick=e=>{const b=e.target.closest('button');if(!b||!src)return;if(b.id=='ad'){auto=autoGrid();$('gw').value=auto.gw}else $('gw').value=b.dataset.w;build()};
 $('up').onclick=()=>$('file').click();$('file').onchange=e=>load(e.target.files[0]);
 document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('drop',e=>{e.preventDefault();load(e.dataTransfer.files[0])});
 ['gw','mc','tw','th'].forEach(i=>$(i).onchange=()=>{build()});
@@ -184,16 +205,19 @@ $('nx').onclick=()=>{cur=(cur+1)%nt();render()};$('pv').onclick=()=>{cur=(cur+nt
 $('pal').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;const i=+c.dataset.i;hl=hl==i?-1:i;render()};
 cv.onclick=e=>{if(mode!='f')return;const r=cv.getBoundingClientRect(),cs=+$('z').value,x=Math.floor((e.clientX-r.left-M)/cs),y=Math.floor((e.clientY-r.top-M)/cs);if(x<0||y<0||x>=gw||y>=gh)return;cur=Math.floor(y/th)*Math.ceil(gw/tw)+Math.floor(x/tw);mode='t';render();window.scrollTo(0,0)};
 window.addEventListener('resize',()=>{if(G&&mode=='t')render()});
-const DEF="I'm uploading an AI-generated \"pixel art\" image. Its pixels are uneven: the block size drifts across the image and the edges are slightly blurry. Fix ONLY that. Everything else must stay as close to the original as possible.\nRules:\n- Keep the exact original width and height in pixels. Do not resize the final image.\n- Do not change the composition, colors, brightness, saturation, contrast or any details. Do not reduce the palette aggressively, and do not boost colors.\n- Do not ask me questions. Use code (PIL/numpy) and tell me what you chose.\nSteps:\n1. Report the original width x height.\n2. Find the best single pixel-block size for the image. Test candidate sizes (roughly 3 to 12 px) and pick the one that gives the lowest difference between the original and the rebuilt image. Show me the top candidates and your choice.\n3. Snap the whole image to that one uniform grid. Use the MEDIAN or most common color of each block, not the average, so edges stay crisp and no new in-between colors appear. If the width or height is not an exact multiple of the block size, compute the grid as round(width / block) by round(height / block).\n4. Upscale back to the exact original width x height with nearest-neighbor, so every pixel block is the same size.\n5. Only merge colors that are nearly identical (a tiny tolerance), to remove noise. Keep all real details such as lights, highlights and small objects. Remove only stray single pixels that are clearly noise.\n6. Check the result: view the original and the fixed version side by side and zoomed in on a few areas (sky, foliage, text-like details, edges). If anything drifted from the original, redo it with a better setting, and keep the closest version.\nExport:\n- Fixed image at the exact original size (same width x height)\n- The 1:1 version with one pixel per grid cell (small file)\n- Grid overlay on the fixed image, with a line every 10 cells and labeled coordinates\n- A palette file with each color's hex code and pixel count\nFinish by telling me:\n- the original size and the grid size (cells wide x cells tall)\n- the pixel block size used\n- the number of colors before and after\n- what was changed, and any areas that still look uneven";
-const pt=$('pt');let sv=null;
-try{sv=localStorage.getItem('pb_prompt')}catch(e){}
-pt.value=sv!==null?sv:DEF;
-pt.addEventListener('input',()=>{try{localStorage.setItem('pb_prompt',pt.value);$('ps').textContent='Saved on this device'}catch(e){$('ps').textContent='Could not save'}});
-$('rs').onclick=()=>{pt.value=DEF;try{localStorage.removeItem('pb_prompt')}catch(e){}$('ps').textContent='Reset to default'};
-$('cp').onclick=async()=>{try{await navigator.clipboard.writeText(pt.value);$('ps').textContent='Copied'}catch(e){pt.focus();pt.select();try{document.execCommand('copy');$('ps').textContent='Copied'}catch(e2){$('ps').textContent='Select the text and copy it manually'}}};
-function tab(n){$('bp').classList.toggle('hide',n!=1);$('pr').classList.toggle('hide',n!=2);$('tb1').classList.toggle('on',n==1);$('tb2').classList.toggle('on',n==2);if(n==1&&G)render()}
-$('tb1').onclick=()=>tab(1);$('tb2').onclick=()=>tab(2);
-if('serviceWorker' in navigator&&location.protocol.indexOf('http')==0)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+function ase(){const n=P.length;$('ase').innerHTML='<div style="font-weight:700;margin-bottom:6px">Aseprite setup</div><p style="margin:0">File → New Sprite, then enter Width <b>'+gw+'</b> and Height <b>'+gh+'</b>.</p><ol><li>Color Mode: Indexed ('+n+' colors) or RGB.</li><li>Background: Transparent.</li><li>Add the palette colors, then draw one tile at a time from Tile view.</li></ol><button id="cp">Copy palette hex codes</button> <span id="cm" style="font-size:13px;color:var(--mu)"></span>';
+$('cp').onclick=()=>{navigator.clipboard.writeText(P.map(hex).join('\n')).then(()=>$('cm').textContent='Copied '+n+' colors',()=>$('cm').textContent='Copy failed')}}
+const _b=build;build=function(){_b();ase()};
+const STARTER='Redraw this image as true pixel art on one strict, fixed pixel grid. Every pixel must be exactly the same size and perfectly square, with no half-size or uneven blocks. No anti-aliasing, no blur, no gradients between pixels, no dithering noise. Use at most 32 flat colors. Keep the composition, shapes and overall colors of the original.';
+const pr=$('pr');let sv=null;try{sv=localStorage.getItem('pab-prompt')}catch(e){}
+pr.value=sv||STARTER;
+pr.oninput=()=>{try{localStorage.setItem('pab-prompt',pr.value)}catch(e){}};
+$('pc').onclick=()=>{navigator.clipboard.writeText(pr.value).then(()=>$('pm').textContent='Copied',()=>$('pm').textContent='Copy failed')};
+$('prs').onclick=()=>{pr.value=STARTER;pr.oninput();$('pm').textContent='Reset'};
+const tab=n=>{$('pg1').classList.toggle('hide',n!=1);$('pg2').classList.toggle('hide',n!=2);$('t1').classList.toggle('on',n==1);$('t2').classList.toggle('on',n==2)};
+$('t1').onclick=()=>tab(1);$('t2').onclick=()=>tab(2);
+if('serviceWorker' in navigator&&(location.protocol=='https:'||location.hostname=='localhost')){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 </script>
 </body>
 </html>
